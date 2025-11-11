@@ -1,15 +1,40 @@
 module RouteExample exposing (..)
 
-import ElmRoot
-import ElmRoot.ErrorHelpers
-import ElmRoot.Http as ElmRoot
-import ElmRoot.RouteParser as RouteParser
-import ElmRoot.Types as ElmRoot
+import Camellia
+import Camellia.ErrorHelpers
+import Camellia.Http as Camellia
+import Camellia.RouteParser as RouteParser
+import Camellia.Types as Camellia
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Task
 import TaskPort
+
+
+exampleApp : Camellia.Application () AppModel Error
+exampleApp =
+    { routes = [ getUserRoute, getPostRoute, createUserRoute ]
+    , notFoundHandler =
+        \request ->
+            { id = request.id
+            , status = 404
+            , body = "{\"error\": \"Not Found\"}"
+            , headers = []
+            }
+    , errorHandler = handleError
+    , init = \_ -> {}
+    }
+
+
+type alias AppModel =
+    {}
+
+
+type Error
+    = TaskPort TaskPort.Error
+    | Http Http.Error
+    | ValidationError String
 
 
 
@@ -29,12 +54,6 @@ type alias CreateUserRequest =
     , lastName : String
     , email : String
     }
-
-
-type Error
-    = TaskPort TaskPort.Error
-    | Http Http.Error
-    | ValidationError String
 
 
 
@@ -59,7 +78,7 @@ decodeCreateUser =
         (Decode.field "email" Decode.string)
 
 
-getUserHandler : AppModel -> ElmRoot.Request { id : Int } () -> Task.Task Error (ElmRoot.Response GetUserResponse)
+getUserHandler : AppModel -> Camellia.Request { id : Int } () -> Task.Task Error (Camellia.Response GetUserResponse)
 getUserHandler _ request =
     let
         userId =
@@ -81,11 +100,11 @@ getUserHandler _ request =
             { id = request.id
             , status = 200
             , body = user
-            , headers = [ ElmRoot.ResponseContentType ElmRoot.ApplicationJson ]
+            , headers = [ Camellia.ResponseContentType Camellia.ApplicationJson ]
             }
 
 
-getPostHandler : AppModel -> ElmRoot.Request { userId : Int, postId : Int } () -> Task.Task Error (ElmRoot.Response String)
+getPostHandler : AppModel -> Camellia.Request { userId : Int, postId : Int } () -> Task.Task Error (Camellia.Response String)
 getPostHandler _ request =
     let
         userId =
@@ -109,11 +128,11 @@ getPostHandler _ request =
             { id = request.id
             , status = 200
             , body = "User " ++ userIdStr ++ " - Post " ++ postIdStr
-            , headers = [ ElmRoot.ResponseContentType ElmRoot.TextPlain ]
+            , headers = [ Camellia.ResponseContentType Camellia.TextPlain ]
             }
 
 
-createUserHandler : AppModel -> ElmRoot.Request () CreateUserRequest -> Task.Task Error (ElmRoot.Response ())
+createUserHandler : AppModel -> Camellia.Request () CreateUserRequest -> Task.Task Error (Camellia.Response ())
 createUserHandler _ request =
     let
         userData =
@@ -137,60 +156,56 @@ createUserHandler _ request =
             }
 
 
-getUserRoute : ElmRoot.RouteHandler AppModel Error
+getUserRoute : Camellia.RouteHandler AppModel Error
 getUserRoute =
-    ElmRoot.createRoute
-        { method = ElmRoot.GET
+    Camellia.createRoute
+        { method = Camellia.GET
         , route =
             RouteParser.defineRoute
                 "/user/:id"
                 (RouteParser.succeed (\id -> { id = id }) |> RouteParser.required "id" RouteParser.int)
-        , requestDecoder = ElmRoot.emptyRequestBody
-        , responseEncoder = ElmRoot.jsonResponseBody encodeUser
+        , requestDecoder = Camellia.emptyRequestBody
+        , responseEncoder = Camellia.jsonResponseBody encodeUser
         , handler = getUserHandler
         }
 
 
-getPostRoute : ElmRoot.RouteHandler AppModel Error
+getPostRoute : Camellia.RouteHandler AppModel Error
 getPostRoute =
-    ElmRoot.createRoute
-        { method = ElmRoot.GET
+    Camellia.createRoute
+        { method = Camellia.GET
         , route =
             RouteParser.defineRoute "/user/:userId/post/:postId"
                 (RouteParser.succeed (\userId postId -> { userId = userId, postId = postId })
                     |> RouteParser.required "userId" RouteParser.int
                     |> RouteParser.required "postId" RouteParser.int
                 )
-        , requestDecoder = ElmRoot.emptyRequestBody
+        , requestDecoder = Camellia.emptyRequestBody
         , responseEncoder = identity
         , handler = getPostHandler
         }
 
 
-createUserRoute : ElmRoot.RouteHandler AppModel Error
+createUserRoute : Camellia.RouteHandler AppModel Error
 createUserRoute =
-    ElmRoot.createRoute
-        { method = ElmRoot.POST
+    Camellia.createRoute
+        { method = Camellia.POST
         , route =
             RouteParser.defineRoute "/user" RouteParser.noParams
-        , requestDecoder = ElmRoot.jsonRequestBody decodeCreateUser
-        , responseEncoder = ElmRoot.emptyResponseBody
+        , requestDecoder = Camellia.jsonRequestBody decodeCreateUser
+        , responseEncoder = Camellia.emptyResponseBody
         , handler = createUserHandler
         }
 
 
-type alias AppModel =
-    {}
-
-
-handleError : ElmRoot.RequestId -> Error -> ElmRoot.Response String
+handleError : Camellia.RequestId -> Error -> Camellia.Response String
 handleError requestId error =
     case error of
         TaskPort taskPortError ->
-            ElmRoot.ErrorHelpers.taskPortErrorToResponse requestId taskPortError
+            Camellia.ErrorHelpers.taskPortErrorToResponse requestId taskPortError
 
         Http httpError ->
-            ElmRoot.ErrorHelpers.httpErrorToResponse requestId httpError
+            Camellia.ErrorHelpers.httpErrorToResponse requestId httpError
 
         ValidationError message ->
             { id = requestId
@@ -198,18 +213,3 @@ handleError requestId error =
             , body = "{\"error\": \"Validation Failed\", \"message\": \"" ++ message ++ "\"}"
             , headers = []
             }
-
-
-exampleApp : ElmRoot.Application () AppModel Error
-exampleApp =
-    { routes = [ getUserRoute, getPostRoute, createUserRoute ]
-    , notFoundHandler =
-        \request ->
-            { id = request.id
-            , status = 404
-            , body = "{\"error\": \"Not Found\"}"
-            , headers = []
-            }
-    , errorHandler = handleError
-    , init = \_ -> {}
-    }

@@ -1,11 +1,11 @@
-module ElmRoot.ErrorHelpers exposing (httpErrorToResponse, taskPortErrorToResponse)
+module Camellia.ErrorHelpers exposing (httpErrorToResponse, taskPortErrorToResponse)
 
-import ElmRoot.Types
+import Camellia.Types
 import Http
 import TaskPort
 
 
-taskPortErrorToResponse : ElmRoot.Types.RequestId -> TaskPort.Error -> ElmRoot.Types.Response String
+taskPortErrorToResponse : Camellia.Types.RequestId -> TaskPort.Error -> Camellia.Types.Response String
 taskPortErrorToResponse requestId error =
     case error of
         TaskPort.InteropError _ ->
@@ -23,7 +23,7 @@ taskPortErrorToResponse requestId error =
             }
 
 
-httpErrorToResponse : ElmRoot.Types.RequestId -> Http.Error -> ElmRoot.Types.Response String
+httpErrorToResponse : Camellia.Types.RequestId -> Http.Error -> Camellia.Types.Response String
 httpErrorToResponse requestId httpError =
     case httpError of
         Http.BadUrl url ->

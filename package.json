@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "camellia",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {

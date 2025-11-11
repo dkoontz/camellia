@@ -1,4 +1,4 @@
-module ElmRoot.RouteParser exposing (RouteParser, defineRoute, int, noParams, optional, required, string, succeed)
+module Camellia.RouteParser exposing (RouteParser, defineRoute, int, noParams, optional, required, string, succeed)
 
 import Dict exposing (Dict)
 

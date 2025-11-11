@@ -1,9 +1,9 @@
 module Main exposing (main)
 
 import RouteExample
-import ElmRoot
+import Camellia
 
 
-main : ElmRoot.HttpServer () RouteExample.AppModel RouteExample.Error
+main : Camellia.HttpServer () RouteExample.AppModel RouteExample.Error
 main =
-    ElmRoot.createServer RouteExample.exampleApp
+    Camellia.createServer RouteExample.exampleApp

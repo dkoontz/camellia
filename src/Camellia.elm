@@ -1,7 +1,7 @@
-port module ElmRoot exposing (HttpServer, createRoute, createServer, emptyRequestBody, emptyResponseBody, jsonRequestBody, jsonResponseBody, stringResponseBody)
+port module Camellia exposing (HttpServer, createRoute, createServer, emptyRequestBody, emptyResponseBody, jsonRequestBody, jsonResponseBody, stringResponseBody)
 
-import ElmRoot.Http
-import ElmRoot.Types
+import Camellia.Http
+import Camellia.Types
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Platform
@@ -13,7 +13,7 @@ import Url
 -- Exposed Server functionality
 
 
-createServer : ElmRoot.Types.Application flags appModel appError -> HttpServer flags appModel appError
+createServer : Camellia.Types.Application flags appModel appError -> HttpServer flags appModel appError
 createServer application =
     Platform.worker
         { init = init application
@@ -26,7 +26,7 @@ type alias HttpServer flags appModel appError =
     Program flags (Model flags appModel appError) (Msg appError)
 
 
-createRoute : ElmRoot.Types.RouteConfig appModel appError routeParams requestBody responseBody -> ElmRoot.Types.RouteHandler appModel appError
+createRoute : Camellia.Types.RouteConfig appModel appError routeParams requestBody responseBody -> Camellia.Types.RouteHandler appModel appError
 createRoute config =
     let
         processRequest appModel { id, params, requestBody, headers, handler, responseEncoder, url } =
@@ -53,7 +53,7 @@ createRoute config =
                         }
                     )
     in
-    ElmRoot.Types.RouteHandler
+    Camellia.Types.RouteHandler
         { method = config.method
         , matcher =
             \appModel nodeRequest ->
@@ -127,18 +127,18 @@ stringResponseBody =
 
 
 type alias Model flags appModel appError =
-    { application : ElmRoot.Types.Application flags appModel appError
+    { application : Camellia.Types.Application flags appModel appError
     , appModel : appModel
     }
 
 
 type Msg appError
-    = OnRequest ElmRoot.Types.NodeHttpRequest
-    | OnInvalidHttpFormat ElmRoot.Types.RequestId String
-    | RequestResult ElmRoot.Types.RequestId (Result appError (ElmRoot.Types.Response String))
+    = OnRequest Camellia.Types.NodeHttpRequest
+    | OnInvalidHttpFormat Camellia.Types.RequestId String
+    | RequestResult Camellia.Types.RequestId (Result appError (Camellia.Types.Response String))
 
 
-init : ElmRoot.Types.Application flags appModel appError -> flags -> ( Model flags appModel appError, Cmd (Msg appError) )
+init : Camellia.Types.Application flags appModel appError -> flags -> ( Model flags appModel appError, Cmd (Msg appError) )
 init application flags =
     ( { application = application, appModel = application.init flags }, Cmd.none )
 
@@ -168,7 +168,7 @@ update msg model =
             ( model
             , Cmd.batch
                 [ notFoundResponse requestId |> nodeHttpResponseEncode |> sendResponse
-                , logging ("HttpRequest from Node was invalid: " ++ errorMessage ++ " (RequestId: " ++ ElmRoot.Types.requestIdToString requestId ++ ")")
+                , logging ("HttpRequest from Node was invalid: " ++ errorMessage ++ " (RequestId: " ++ Camellia.Types.requestIdToString requestId ++ ")")
                 ]
             )
 
@@ -203,10 +203,10 @@ subscriptions model =
                 Err error ->
                     case Decode.decodeValue (Decode.field "id" Decode.string) value of
                         Ok stringId ->
-                            OnInvalidHttpFormat (ElmRoot.Types.requestIdFromString stringId) (Decode.errorToString error)
+                            OnInvalidHttpFormat (Camellia.Types.requestIdFromString stringId) (Decode.errorToString error)
 
                         Err _ ->
-                            OnInvalidHttpFormat (ElmRoot.Types.requestIdFromString "unknown") (Decode.errorToString error)
+                            OnInvalidHttpFormat (Camellia.Types.requestIdFromString "unknown") (Decode.errorToString error)
         )
 
 
@@ -224,10 +224,10 @@ port logging : String -> Cmd msg
 
 
 type alias NodeHttpResponse =
-    { id : ElmRoot.Types.RequestId
+    { id : Camellia.Types.RequestId
     , status : Int
     , body : String
-    , headers : List ElmRoot.Http.ResponseHeader
+    , headers : List Camellia.Http.ResponseHeader
     }
 
 
@@ -235,7 +235,7 @@ type alias NodeHttpResponse =
 -- RUNNER UTILITIES
 
 
-responseToNodeHttp : ElmRoot.Types.Response String -> NodeHttpResponse
+responseToNodeHttp : Camellia.Types.Response String -> NodeHttpResponse
 responseToNodeHttp response =
     { id = response.id
     , status = response.status
@@ -244,7 +244,7 @@ responseToNodeHttp response =
     }
 
 
-badRequestResponse : ElmRoot.Types.RequestId -> String -> ElmRoot.Types.Response String
+badRequestResponse : Camellia.Types.RequestId -> String -> Camellia.Types.Response String
 badRequestResponse requestId errorMessage =
     { id = requestId
     , status = 400
@@ -253,13 +253,13 @@ badRequestResponse requestId errorMessage =
     }
 
 
-tryRoutes : appModel -> ElmRoot.Types.NodeHttpRequest -> List (ElmRoot.Types.RouteHandler appModel appError) -> Maybe (Task.Task appError (ElmRoot.Types.Response String))
+tryRoutes : appModel -> Camellia.Types.NodeHttpRequest -> List (Camellia.Types.RouteHandler appModel appError) -> Maybe (Task.Task appError (Camellia.Types.Response String))
 tryRoutes appModel request routes =
     case routes of
         [] ->
             Nothing
 
-        (ElmRoot.Types.RouteHandler config) :: remaining ->
+        (Camellia.Types.RouteHandler config) :: remaining ->
             if request.method == config.method then
                 case config.matcher appModel request of
                     Just (Ok response) ->
@@ -275,7 +275,7 @@ tryRoutes appModel request routes =
                 tryRoutes appModel request remaining
 
 
-notFoundResponse : ElmRoot.Types.RequestId -> ElmRoot.Types.Response String
+notFoundResponse : Camellia.Types.RequestId -> Camellia.Types.Response String
 notFoundResponse requestId =
     { id = requestId
     , status = 404
@@ -287,30 +287,30 @@ notFoundResponse requestId =
 nodeHttpResponseEncode : NodeHttpResponse -> Encode.Value
 nodeHttpResponseEncode response =
     Encode.object
-        [ ( "id", Encode.string (ElmRoot.Types.requestIdToString response.id) )
+        [ ( "id", Encode.string (Camellia.Types.requestIdToString response.id) )
         , ( "status", Encode.int response.status )
         , ( "body", Encode.string response.body )
-        , ( "headers", Encode.list ElmRoot.Http.encodeResponseHeader response.headers )
+        , ( "headers", Encode.list Camellia.Http.encodeResponseHeader response.headers )
         ]
 
 
-nodeHttpRequestDecode : ElmRoot.Types.RequestId -> Decode.Decoder ElmRoot.Types.NodeHttpRequest
+nodeHttpRequestDecode : Camellia.Types.RequestId -> Decode.Decoder Camellia.Types.NodeHttpRequest
 nodeHttpRequestDecode requestId =
-    Decode.map4 (\method url body headers -> ElmRoot.Types.NodeHttpRequest requestId method url body headers)
-        (Decode.field "method" ElmRoot.Http.httpMethodDecoder)
+    Decode.map4 (\method url body headers -> Camellia.Types.NodeHttpRequest requestId method url body headers)
+        (Decode.field "method" Camellia.Http.httpMethodDecoder)
         (Decode.field "url" decodeUrl)
         (Decode.field "body" Decode.string)
-        (Decode.field "headers" (Decode.list ElmRoot.Http.decodeRequestHeader))
+        (Decode.field "headers" (Decode.list Camellia.Http.decodeRequestHeader))
 
 
-nodeHttpRequestDecodeWithId : Decode.Decoder ElmRoot.Types.NodeHttpRequest
+nodeHttpRequestDecodeWithId : Decode.Decoder Camellia.Types.NodeHttpRequest
 nodeHttpRequestDecodeWithId =
     Decode.field "id" Decode.string
         |> Decode.andThen
             (\stringId ->
                 let
                     requestId =
-                        ElmRoot.Types.requestIdFromString stringId
+                        Camellia.Types.requestIdFromString stringId
                 in
                 nodeHttpRequestDecode requestId
             )

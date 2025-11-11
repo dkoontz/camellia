@@ -272,7 +272,7 @@ server.on("clientError", (error, socket) => {
   }
 });
 
-const PORT = process.env.ELMROOT_PORT || 3000;
+const PORT = process.env.CAMELLIA_PORT || 3000;
 server.listen(PORT, () => {
   logger.info({ port: PORT }, "Server started successfully");
 });

@@ -1,16 +1,16 @@
-module ElmRoot.Types exposing (Application, NodeHttpRequest, Request, RequestId, Response, RouteConfig, RouteHandler(..), requestIdFromString, requestIdToString)
+module Camellia.Types exposing (Application, NodeHttpRequest, Request, RequestId, Response, RouteConfig, RouteHandler(..), requestIdFromString, requestIdToString)
 
-import ElmRoot.Http
+import Camellia.Http
 import Task
 import Url
 
 
 {-| Given a set of routes and functions for initializing a shared server state,
 hadling errors and the not found route, this type represents the HTTP server application.
-Use @docs ElmRoot.createServer to create an instance of this type.
-Use @docs ElmRoot.createRoute to create individual routes.
+Use @docs Camellia.createServer to create an instance of this type.
+Use @docs Camellia.createRoute to create individual routes.
 
-    exampleApp : ElmRoot.Types.Application () AppModel Error
+    exampleApp : Camellia.Types.Application () AppModel Error
     exampleApp =
         { routes = [ getUserRoute, createUserRoute ]
         , notFoundHandler =
@@ -54,7 +54,7 @@ type alias Response responseTypes =
     { id : RequestId
     , status : Int
     , body : responseTypes
-    , headers : List ElmRoot.Http.ResponseHeader
+    , headers : List Camellia.Http.ResponseHeader
     }
 
 
@@ -62,31 +62,31 @@ type alias Request routeParams requestBodyData =
     { id : RequestId
     , params : routeParams
     , body : requestBodyData
-    , headers : List ElmRoot.Http.RequestHeader
+    , headers : List Camellia.Http.RequestHeader
     , url : Url.Url
     }
 
 
-{-| The raw HTTP request from Node.js, you should create your request handlsers with ElmRoot.createRoute
+{-| The raw HTTP request from Node.js, you should create your request handlsers with Camellia.createRoute
 -}
 type alias NodeHttpRequest =
     { id : RequestId
-    , method : ElmRoot.Http.HttpMethod
+    , method : Camellia.Http.HttpMethod
     , url : Url.Url
     , body : String
-    , headers : List ElmRoot.Http.RequestHeader
+    , headers : List Camellia.Http.RequestHeader
     }
 
 
 type RouteHandler appModel appError
     = RouteHandler
-        { method : ElmRoot.Http.HttpMethod
+        { method : Camellia.Http.HttpMethod
         , matcher : appModel -> NodeHttpRequest -> Maybe (Result String (Task.Task appError (Response String)))
         }
 
 
 type alias RouteConfig appModel appError routeParams requestBody responseBody =
-    { method : ElmRoot.Http.HttpMethod
+    { method : Camellia.Http.HttpMethod
     , route : String -> Maybe (Result String routeParams)
     , requestDecoder : String -> Result String requestBody
     , responseEncoder : responseBody -> String

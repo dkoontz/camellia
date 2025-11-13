@@ -12,16 +12,10 @@ import Task
 import TaskPort
 
 
-exampleApp : Camellia.Application () AppModel Error
-exampleApp =
+app : Camellia.Application () AppModel Error
+app =
     { routes = [ getUserRoute, getPostRoute, createUserRoute ]
-    , notFoundHandler =
-        \request ->
-            { id = request.id
-            , status = 404
-            , body = "{\"error\": \"Not Found\"}"
-            , headers = []
-            }
+    , notFoundHandler = handleNotFound
     , errorHandler = handleError
     , init = \_ -> {}
     }
@@ -32,9 +26,9 @@ type alias AppModel =
 
 
 type Error
-    = TaskPort TaskPort.Error
-    | Http Http.Error
+    = Http Http.Error
     | ValidationError String
+    | TaskPort TaskPort.Error
 
 
 
@@ -78,7 +72,59 @@ decodeCreateUser =
         (Decode.field "email" Decode.string)
 
 
-getUserHandler : AppModel -> Camellia.Request { id : Int } () -> Task.Task Error (Camellia.Response GetUserResponse)
+
+{- Routes define the input, output, and handler for any given route. If the types of a route's handler
+   do not match the types of the decoder/encoder and the route params you will get a compile error.
+-}
+
+
+getUserRoute : Camellia.RouteHandler AppModel Error
+getUserRoute =
+    Camellia.createRoute
+        { method = Camellia.GET
+        , route =
+            RouteParser.defineRoute
+                "/user/:id"
+                (RouteParser.succeed (\id -> { id = id }) |> RouteParser.required "id" RouteParser.int)
+        , requestDecoder = Camellia.emptyRequestBodyDecoder
+        , responseEncoder = Camellia.jsonResponseBodyEncoder encodeUser
+        , handler = getUserHandler
+        }
+
+
+getPostRoute : Camellia.RouteHandler AppModel Error
+getPostRoute =
+    Camellia.createRoute
+        { method = Camellia.GET
+        , route =
+            RouteParser.defineRoute "/user/:userId/post/:postId"
+                (RouteParser.succeed (\userId postId -> { userId = userId, postId = postId })
+                    |> RouteParser.required "userId" RouteParser.int
+                    |> RouteParser.required "postId" RouteParser.int
+                )
+        , requestDecoder = Camellia.emptyRequestBodyDecoder
+        , responseEncoder = identity
+        , handler = getPostHandler
+        }
+
+
+createUserRoute : Camellia.RouteHandler AppModel Error
+createUserRoute =
+    Camellia.createRoute
+        { method = Camellia.POST
+        , route =
+            RouteParser.defineRoute "/user" RouteParser.noParams
+        , requestDecoder = Camellia.jsonRequestBodyDecoder decodeCreateUser
+        , responseEncoder = Camellia.emptyResponseBodyEncoder
+        , handler = createUserHandler
+        }
+
+
+
+-- Handlers
+
+
+getUserHandler : AppModel -> Camellia.Request { id : Int } Camellia.EmptyRequestBody -> Task.Task Error (Camellia.Response GetUserResponse)
 getUserHandler _ request =
     let
         userId =
@@ -88,6 +134,7 @@ getUserHandler _ request =
         Task.fail (ValidationError "User ID must be positive")
 
     else
+        -- Create tasks to do whatever is needed to fetch a user, (database call, etc.), in this example we just mock a response.
         let
             user =
                 { id = userId
@@ -104,7 +151,7 @@ getUserHandler _ request =
             }
 
 
-getPostHandler : AppModel -> Camellia.Request { userId : Int, postId : Int } () -> Task.Task Error (Camellia.Response String)
+getPostHandler : AppModel -> Camellia.Request { userId : Int, postId : Int } Camellia.EmptyRequestBody -> Task.Task Error (Camellia.Response String)
 getPostHandler _ request =
     let
         userId =
@@ -132,7 +179,7 @@ getPostHandler _ request =
             }
 
 
-createUserHandler : AppModel -> Camellia.Request () CreateUserRequest -> Task.Task Error (Camellia.Response ())
+createUserHandler : AppModel -> Camellia.Request Camellia.NoRouteParams CreateUserRequest -> Task.Task Error (Camellia.Response Camellia.EmptyResponseBody)
 createUserHandler _ request =
     let
         userData =
@@ -151,51 +198,13 @@ createUserHandler _ request =
         Task.succeed
             { id = request.id
             , status = 201
-            , body = ()
+            , body = Camellia.emptyResponseBody
             , headers = []
             }
 
 
-getUserRoute : Camellia.RouteHandler AppModel Error
-getUserRoute =
-    Camellia.createRoute
-        { method = Camellia.GET
-        , route =
-            RouteParser.defineRoute
-                "/user/:id"
-                (RouteParser.succeed (\id -> { id = id }) |> RouteParser.required "id" RouteParser.int)
-        , requestDecoder = Camellia.emptyRequestBody
-        , responseEncoder = Camellia.jsonResponseBody encodeUser
-        , handler = getUserHandler
-        }
 
-
-getPostRoute : Camellia.RouteHandler AppModel Error
-getPostRoute =
-    Camellia.createRoute
-        { method = Camellia.GET
-        , route =
-            RouteParser.defineRoute "/user/:userId/post/:postId"
-                (RouteParser.succeed (\userId postId -> { userId = userId, postId = postId })
-                    |> RouteParser.required "userId" RouteParser.int
-                    |> RouteParser.required "postId" RouteParser.int
-                )
-        , requestDecoder = Camellia.emptyRequestBody
-        , responseEncoder = identity
-        , handler = getPostHandler
-        }
-
-
-createUserRoute : Camellia.RouteHandler AppModel Error
-createUserRoute =
-    Camellia.createRoute
-        { method = Camellia.POST
-        , route =
-            RouteParser.defineRoute "/user" RouteParser.noParams
-        , requestDecoder = Camellia.jsonRequestBody decodeCreateUser
-        , responseEncoder = Camellia.emptyResponseBody
-        , handler = createUserHandler
-        }
+-- Global error handler
 
 
 handleError : Camellia.RequestId -> Error -> Camellia.Response String
@@ -213,3 +222,12 @@ handleError requestId error =
             , body = "{\"error\": \"Validation Failed\", \"message\": \"" ++ message ++ "\"}"
             , headers = []
             }
+
+
+handleNotFound : Camellia.NodeHttpRequest -> Camellia.Response String
+handleNotFound request =
+    { id = request.id
+    , status = 404
+    , body = "{\"error\": \"Not Found\"}"
+    , headers = []
+    }

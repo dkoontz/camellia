@@ -1,4 +1,4 @@
-port module Camellia exposing (HttpServer, createRoute, createServer, emptyRequestBody, emptyResponseBody, jsonRequestBody, jsonResponseBody, stringResponseBody)
+port module Camellia exposing (EmptyRequestBody, EmptyResponseBody, HttpServer, NoRouteParams, createRoute, createServer, emptyRequestBodyDecoder, emptyResponseBody, emptyResponseBodyEncoder, jsonRequestBodyDecoder, jsonResponseBodyEncoder, stringResponseBodyEncoder)
 
 import Camellia.Http
 import Camellia.Types
@@ -30,7 +30,6 @@ createRoute : Camellia.Types.RouteConfig appModel appError routeParams requestBo
 createRoute config =
     let
         processRequest appModel { id, params, requestBody, headers, handler, responseEncoder, url } =
-            -- Create the typed request
             let
                 typedRequest =
                     { id = id
@@ -39,13 +38,10 @@ createRoute config =
                     , headers = headers
                     , url = url
                     }
-
-                -- Call the user's handler
             in
             handler appModel typedRequest
                 |> Task.map
                     (\response ->
-                        -- Encode the response body to String
                         { id = response.id
                         , status = response.status
                         , body = responseEncoder response.body
@@ -57,9 +53,7 @@ createRoute config =
         { method = config.method
         , matcher =
             \appModel nodeRequest ->
-                -- Check if HTTP method matches
                 if nodeRequest.method == config.method then
-                    -- Try to parse the URL path
                     case config.route nodeRequest.url.path of
                         Just paramsResult ->
                             case paramsResult of
@@ -67,7 +61,6 @@ createRoute config =
                                     Just (Err error)
 
                                 Ok params ->
-                                    -- Route params parsed ok, now try to decode the request body
                                     case config.requestDecoder nodeRequest.body of
                                         Ok requestBody ->
                                             Just
@@ -88,37 +81,52 @@ createRoute config =
                                             Just (Err decodeError)
 
                         Nothing ->
-                            -- URL didn't match this route
                             Nothing
 
                 else
-                    -- HTTP method didn't match
                     Nothing
         }
 
 
-emptyRequestBody : String -> Result String ()
-emptyRequestBody =
+type alias NoRouteParams =
+    ()
+
+
+type alias EmptyRequestBody =
+    ()
+
+
+type alias EmptyResponseBody =
+    ()
+
+
+emptyResponseBody : ()
+emptyResponseBody =
+    ()
+
+
+emptyRequestBodyDecoder : String -> Result String EmptyRequestBody
+emptyRequestBodyDecoder =
     always (Ok ())
 
 
-emptyResponseBody : () -> String
-emptyResponseBody =
+emptyResponseBodyEncoder : EmptyResponseBody -> String
+emptyResponseBodyEncoder =
     always ""
 
 
-jsonRequestBody : Decode.Decoder a -> String -> Result String a
-jsonRequestBody decoder =
+jsonRequestBodyDecoder : Decode.Decoder a -> String -> Result String a
+jsonRequestBodyDecoder decoder =
     Decode.decodeString decoder >> Result.mapError (\err -> "The Request body didn't match what I was expecting. " ++ Decode.errorToString err)
 
 
-jsonResponseBody : (a -> Encode.Value) -> a -> String
-jsonResponseBody encoder =
+jsonResponseBodyEncoder : (a -> Encode.Value) -> a -> String
+jsonResponseBodyEncoder encoder =
     encoder >> Encode.encode 0
 
 
-stringResponseBody : String -> String
-stringResponseBody =
+stringResponseBodyEncoder : String -> String
+stringResponseBodyEncoder =
     identity
 
 
@@ -297,10 +305,10 @@ nodeHttpResponseEncode response =
 nodeHttpRequestDecode : Camellia.Types.RequestId -> Decode.Decoder Camellia.Types.NodeHttpRequest
 nodeHttpRequestDecode requestId =
     Decode.map4 (\method url body headers -> Camellia.Types.NodeHttpRequest requestId method url body headers)
-        (Decode.field "method" Camellia.Http.httpMethodDecoder)
         (Decode.field "url" decodeUrl)
-        (Decode.field "body" Decode.string)
+        (Decode.field "method" Camellia.Http.httpMethodDecoder)
         (Decode.field "headers" (Decode.list Camellia.Http.decodeRequestHeader))
+        (Decode.field "body" Decode.string)
 
 
 nodeHttpRequestDecodeWithId : Decode.Decoder Camellia.Types.NodeHttpRequest

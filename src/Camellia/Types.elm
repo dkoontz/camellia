@@ -60,21 +60,21 @@ type alias Response responseTypes =
 
 type alias Request routeParams requestBodyData =
     { id : RequestId
+    , url : Url.Url
+    , headers : List Camellia.Http.RequestHeader
     , params : routeParams
     , body : requestBodyData
-    , headers : List Camellia.Http.RequestHeader
-    , url : Url.Url
     }
 
 
-{-| The raw HTTP request from Node.js, you should create your request handlsers with Camellia.createRoute
+{-| The raw HTTP request from Node.js, you should create your request handlers with Camellia.createRoute
 -}
 type alias NodeHttpRequest =
     { id : RequestId
-    , method : Camellia.Http.HttpMethod
     , url : Url.Url
-    , body : String
+    , method : Camellia.Http.HttpMethod
     , headers : List Camellia.Http.RequestHeader
+    , body : String
     }
 
 

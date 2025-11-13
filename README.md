@@ -15,27 +15,19 @@ Camellia enables you to build robust, type-safe web servers by writing your busi
 
 ### Why Camellia Exists
 
-Traditional Node.js servers often suffer from runtime errors due to JavaScript's dynamic typing. Camellia solves this by:
+Elm is a functional programming language that compiles to JavaScript and was designed primarily for browser applications. While Elm provides strong type safety and a reliable architecture for frontend development, it doesn't have direct access to Node.js APIs for file system operations, database connections, or other server-side concerns.
 
-- Providing compile-time guarantees about your HTTP routes and handlers
-- Enabling fearless refactoring through Elm's type system
-- Offering a clean separation between side effects (Node.js) and pure logic (Elm)
-- Supporting the full HTTP specification with type-safe headers, status codes, and content types
+Camellia bridges this gap by implementing a providing a framework that lets you write HTTP server logic in Elm while running on Node.js (internally using Platform.worker). You get the benefits of Elm's type system and functional programming model for your server-side business logic, while gaining the ability to deploy on the Node.js runtime environment. Camellia uses the TaskPorts library to enable the addition of custom commands allowing you to access any specific capabilities you need from your platform.
 
 ## How to Use It
 
-### Installation
-
-```bash
-npm install
-```
+Eventually there will be a NPM package, for now just clone this repo and update the example code at `examples` with your own application. You can also move the contents of `examples` into `src`.
 
 ### Basic Server Setup
 
 1. **Define your application model and routes** in Elm:
 
 ```elm
--- In your RouteExample.elm file
 import Camellia
 import Camellia.Types as Camellia
 import Camellia.Http as Http
@@ -43,6 +35,13 @@ import Task
 
 type alias AppModel = 
     { users : List User }
+
+
+type Error
+    = TaskPort TaskPort.Error
+    | Http Http.Error
+    | ValidationError String
+
 
 getUserRoute : Camellia.RouteHandler AppModel Error
 getUserRoute =
@@ -53,6 +52,7 @@ getUserRoute =
         , responseEncoder = Camellia.jsonResponseBody encodeUser
         , handler = getUserHandler
         }
+
 
 getUserHandler : AppModel -> Camellia.Request { id : Int } () -> Task.Task Error (Camellia.Response User)
 getUserHandler model request =
@@ -206,17 +206,10 @@ npm run build && npm run start
 - Request body decoding can fail - handle decode errors appropriately
 - Response encoders must produce valid strings for the HTTP response body
 
-### Performance Notes
-
-- Elm compilation happens at build time, not runtime
-- The Node.js server handles all I/O while Elm handles pure business logic
-- Large request/response bodies are serialized through ports - consider streaming for large files
-
 ### Debugging
 
 - Use `LOG_LEVEL=debug` for detailed request/response logging
 - Elm's `Debug.log` is available in development builds (`npm run build:debug`)
-- Check the browser network tab and server logs for port communication issues
 
 ### Hot Reload
 
@@ -229,12 +222,3 @@ npm run build && npm run start
 - Build production artifacts with `npm run build`
 - The compiled output is a single JavaScript file for Node.js
 - Set appropriate environment variables for production deployment
-- Consider using a process manager like PM2 for production deployments
-
-### Common Patterns
-
-1. **Route Organization**: Keep related routes in the same module
-2. **Model Design**: Design your application model to support all your routes
-3. **Error Types**: Create specific error types for different failure scenarios
-4. **Response Headers**: Use the type-safe header constructors from `Camellia.Http`
-5. **Validation**: Validate request bodies and parameters at the route level

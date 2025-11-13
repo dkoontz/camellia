@@ -98,9 +98,7 @@ app.ports.logging.subscribe((message) => {
   }
 });
 
-////////////
-
-// Create HTTP server with error handling
+// HTTP server
 server = http.createServer((req, res) => {
   const requestId = uuidv4();
 
